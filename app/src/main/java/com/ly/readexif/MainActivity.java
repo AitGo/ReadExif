@@ -85,7 +85,6 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             photoPath = getPhotoFromPhotoAlbum.getRealPathFromUri(this, data.getData());
             ivPhoto.setImageBitmap(BitmapFactory.decodeFile(photoPath));
             Log.e(TAG,"返回路径:" + photoPath);
-
             readExif(photoPath);
         }
     }
@@ -109,9 +108,9 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             String latitude = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE);
             String longitude = exifInterface.getAttribute(ExifInterface.TAG_GPS_LONGITUDE);
 
-            StringBuilder sb = new StringBuilder();
-            sb.append(longitude)
-                    .append(latitude);
+//            StringBuilder sb = new StringBuilder();
+//            sb.append(longitude)
+//                    .append(latitude);
 
             Log.e("TAG", "## orientation=" + orientation);
             Log.e("TAG", "## dateTime=" + dateTime);
@@ -133,7 +132,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                 RegeocodeQuery query = new RegeocodeQuery(latLonPoint, 200,GeocodeSearch.GPS);
                 geocoderSearch.getFromLocationAsyn(query);
             }else {
-                ToastUtils.showLong("该照片没有经纬度信息");
+                tvExifInfo.setText("该照片没有经纬度信息");
+//                ToastUtils.showLong("该照片没有经纬度信息");
             }
 
         } catch (Exception e) {
@@ -192,7 +192,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         if(i == 1000) {
             tvExifInfo.setText(result.getRegeocodeAddress().getFormatAddress());
         }else {
-            ToastUtils.showLong("获取地址信息错误：" + i);
+            tvExifInfo.setText("获取地址信息错误：" + i);
+//            ToastUtils.showLong("获取地址信息错误：" + i);
         }
     }
 
