@@ -28,6 +28,7 @@
             android:value="e1265561689f6a21c583971fc90f0d66"/>
         <activity android:name=".MainActivity">
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />

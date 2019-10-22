@@ -1,11 +1,21 @@
 package com.ly.readexif;
 
 import android.Manifest;
+import android.app.Activity;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.Drawable;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.media.ExifInterface;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
@@ -23,10 +33,22 @@ import com.amap.api.services.geocoder.GeocodeResult;
 import com.amap.api.services.geocoder.GeocodeSearch;
 import com.amap.api.services.geocoder.RegeocodeQuery;
 import com.amap.api.services.geocoder.RegeocodeResult;
-import com.ly.readexif.utils.ToastUtils;
+import com.ly.readexif.utils.AndroidBmpUtil;
 import com.ly.readexif.utils.getPhotoFromPhotoAlbum;
 
+import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.List;
+
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -55,12 +77,16 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     private static final String TAG = "exif";
     private String photoPath;
     private GeocodeSearch geocoderSearch;
+    private int REQUEST_CODE_CAPTURE = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
+        if (OpenCVLoader.initDebug()) {
+            System.loadLibrary("opencv_java3");
+        }
         getPermission();
         geocoderSearch = new GeocodeSearch(this);
         geocoderSearch.setOnGeocodeSearchListener(this);
@@ -71,6 +97,12 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         switch (view.getId()) {
             case R.id.btn_goPhotoAlbum:
                 goPhotoAlbum();
+//                Intent intent = new Intent();
+//                ComponentName component = new ComponentName(
+//                        "ai.moqi.fingerprint.camera_lib",
+//                        "ai.moqi.fingerprint.lib.CameraActivity");
+//                intent.setComponent(component);
+//                startActivityForResult(intent, REQUEST_CODE_CAPTURE);
                 break;
             case R.id.iv_photo:
                 break;
@@ -79,15 +111,255 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
+//        if (requestCode == REQUEST_CODE_CAPTURE && resultCode == Activity.RESULT_OK && data != null) {
+            // 8-bit grayscale bytes (for uploading)
+//            byte[] imageBytes = data.getByteArrayExtra("image_bytes");
+//
+//            // convert to bitmap
+//            Mat mat = new Mat(640, 640, CvType.CV_8UC1);
+//            mat.put(0, 0, imageBytes);
+//            Bitmap bitmap = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888);
+//            Utils.matToBitmap(mat, bitmap);
+
+//            Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+            // display bitmap
+//            ivPhoto.setImageBitmap(bitmap);
+//            saveBmp(bitmap);
+//            BmpUtils.getBmpWith8(imageBytes,"/sdcard/test2.bmp",bitmap.getWidth(),bitmap.getHeight());
+//        }
         if (requestCode == 2 && resultCode == RESULT_OK) {
             //相册
             photoPath = getPhotoFromPhotoAlbum.getRealPathFromUri(this, data.getData());
-            ivPhoto.setImageBitmap(BitmapFactory.decodeFile(photoPath));
+            Bitmap bitmap = BitmapFactory.decodeFile(photoPath);
+            bitmap = imageScale(bitmap,512,512);
+            ivPhoto.setImageBitmap(bitmap);
             Log.e(TAG,"返回路径:" + photoPath);
-            readExif(photoPath);
+//            readExif(photoPath);
+            String sdcardBmpPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/test456.bmp";
+            AndroidBmpUtil bmpUtil = new AndroidBmpUtil();
+            Bitmap result = BitmapFactory.decodeFile(photoPath);
+            boolean isSaveResult = bmpUtil.save(bitmap, sdcardBmpPath);
+        }
+        super.onActivityResult(requestCode, resultCode, data);
+//        if (requestCode == 2 && resultCode == RESULT_OK) {
+//            //相册
+//            photoPath = getPhotoFromPhotoAlbum.getRealPathFromUri(this, data.getData());
+//            ivPhoto.setImageBitmap(BitmapFactory.decodeFile(photoPath));
+//            Log.e(TAG,"返回路径:" + photoPath);
+////            readExif(photoPath);
+//
+//            bitmap2Gray(photoPath);
+//
+////            new Thread(new Runnable() {
+////                @Override
+////                public void run() {
+////                    try{
+////                        File file = new File(photoPath);
+////                        FileInputStream fileInputStream = new FileInputStream(file);
+////                        byte[] bytes = new byte[(int)file.length()];
+////                        while ((fileInputStream.read(bytes)) != -1) {
+////
+////                        }
+////                        fileInputStream.close();
+////                        Bitmap bitmap = BitmapFactory.decodeFile(photoPath);
+////                        BmpUtils.getBmpWith8(bytes,"/sdcard/bmp.bmp",bitmap.getWidth(),bitmap.getHeight());
+////                    }catch (Exception e) {
+////
+////                    }
+////                }
+////            }).start();
+//
+//            saveBmp(BitmapFactory.decodeFile(photoPath));
+//
+//        }
+    }
+
+    /**
+     * 调整图片大小
+     *
+     * @param bitmap
+     *            源
+     * @param dst_w
+     *            输出宽度
+     * @param dst_h
+     *            输出高度
+     * @return
+     */
+    public static Bitmap imageScale(Bitmap bitmap, int dst_w, int dst_h) {
+        int src_w = bitmap.getWidth();
+        int src_h = bitmap.getHeight();
+        float scale_w = ((float) dst_w) / src_w;
+        float scale_h = ((float) dst_h) / src_h;
+        Matrix matrix = new Matrix();
+        matrix.postScale(scale_w, scale_h);
+        Bitmap dstbmp = Bitmap.createBitmap(bitmap, 0, 0, src_w, src_h, matrix,
+                true);
+        return dstbmp;
+    }
+
+    private void bitmap2Gray(String filePath){
+
+//       File file = new File(SAVEDIR, filename + "_1.jpg");
+        Bitmap bitmapSrc =null;
+        Bitmap grayBitmap = null;
+        try {
+            bitmapSrc = BitmapFactory.decodeFile(filePath);
+//            grayBitmap = Bitmap.createBitmap(bitmapSrc.getWidth(), bitmapSrc.getHeight(), Bitmap.Config.ARGB_8888);
+//            Canvas canvas = new Canvas(grayBitmap);
+//            Paint paint = new Paint();
+//            ColorMatrix colorMatrix = new ColorMatrix();
+//            colorMatrix.setSaturation(0);
+//            ColorMatrixColorFilter colorMatrixFilter = new ColorMatrixColorFilter(colorMatrix);
+//            paint.setColorFilter(colorMatrixFilter);
+//            canvas.drawBitmap(bitmapSrc, 0, 0, paint);
+//            canvas.save();
+//            OutputStream outStream = null;
+//            outStream = new FileOutputStream(new File(filePath));
+//            grayBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream);
+
+//            BmpUtils.getBmpWith8(bmpFile,"/sdcard/test.bmp",bitmapSrc.getWidth(), bitmapSrc.getHeight());
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }finally{
+            if (bitmapSrc!=null && !bitmapSrc.isRecycled()){
+                bitmapSrc.recycle();
+            }
+
+            if (grayBitmap!=null && !grayBitmap.isRecycled()){
+                grayBitmap.recycle();
+            }
+
+        }
+
+
+    }
+
+    /**
+     * 将Bitmap存为 .bmp格式图片
+     * @param bitmap
+     */
+    private void saveBmp(Bitmap bitmap) {
+        if (bitmap == null)
+            return;
+        // 位图大小
+        int nBmpWidth = bitmap.getWidth();
+        int nBmpHeight = bitmap.getHeight();
+        // 图像数据大小
+        int bufferSize = nBmpHeight * (nBmpWidth * 3 + nBmpWidth % 4);
+        try {
+            byte[] bytes = addBMP8ImageInfosHeaderTable();
+            // 存储文件名
+            String filename = "/sdcard/test1.bmp";
+            File file = new File(filename);
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+            FileOutputStream fileos = new FileOutputStream(filename);
+            // bmp文件头
+            int bfType = 0x4d42;
+            long bfSize = 14 + 40 + bytes.length + bufferSize;
+            int bfReserved1 = 0;
+            int bfReserved2 = 0;
+            long bfOffBits = 14 + 40 + bytes.length;
+            // 保存bmp文件头
+            writeWord(fileos, bfType);
+            writeDword(fileos, bfSize);
+            writeWord(fileos, bfReserved1);
+            writeWord(fileos, bfReserved2);
+            writeDword(fileos, bfOffBits);
+            // bmp信息头
+            long biSize = 40L;
+            long biWidth = nBmpWidth;
+            long biHeight = nBmpHeight;
+            int biPlanes = 1;
+            int biBitCount = 8;
+            long biCompression = 0L;
+            long biSizeImage = 0L;
+            long biXpelsPerMeter = 0L;
+            long biYPelsPerMeter = 0L;
+            long biClrUsed = 0L;
+            long biClrImportant = 0L;
+            // 保存bmp信息头
+            writeDword(fileos, biSize);
+            writeLong(fileos, biWidth);
+            writeLong(fileos, biHeight);
+            writeWord(fileos, biPlanes);
+            writeWord(fileos, biBitCount);
+            writeDword(fileos, biCompression);
+            writeDword(fileos, biSizeImage);
+            writeLong(fileos, biXpelsPerMeter);
+            writeLong(fileos, biYPelsPerMeter);
+            writeDword(fileos, biClrUsed);
+            writeDword(fileos, biClrImportant);
+            fileos.write(bytes);
+            // 像素扫描
+            byte bmpData[] = new byte[bufferSize];
+            int wWidth = (nBmpWidth * 3 + nBmpWidth % 4);
+            for (int nCol = 0, nRealCol = nBmpHeight - 1; nCol < nBmpHeight; ++nCol, --nRealCol) {
+                for (int wRow = 0, wByteIdex = 0; wRow < nBmpWidth; wRow++, wByteIdex += 3) {
+                    int clr = bitmap.getPixel(wRow, nCol);
+                    bmpData[nRealCol * wWidth + wByteIdex] = (byte) Color.blue(clr);
+                    bmpData[nRealCol * wWidth + wByteIdex + 1] = (byte) Color.green(clr);
+                    bmpData[nRealCol * wWidth + wByteIdex + 2] = (byte) Color.red(clr);
+                }
+            }
+
+            fileos.write(bmpData);
+            fileos.flush();
+            fileos.close();
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
+
+    /**
+     * 8位位图的颜色调板
+     * @return
+     */
+    private static byte[] addBMP8ImageInfosHeaderTable() {
+        byte[] buffer = new byte[256 * 4];
+
+        //生成颜色表
+        for (int i = 0; i < 256; i++) {
+            buffer[0 + 4 * i] = (byte) i;   //Blue
+            buffer[1 + 4 * i] = (byte) i;   //Green
+            buffer[2 + 4 * i] = (byte) i;   //Red
+            buffer[3 + 4 * i] = (byte) 0x00;   //保留值
+        }
+
+        return buffer;
+    }
+
+    protected void writeWord(FileOutputStream stream, int value) throws IOException {
+        byte[] b = new byte[2];
+        b[0] = (byte) (value & 0xff);
+        b[1] = (byte) (value >> 8 & 0xff);
+        stream.write(b);
+    }
+
+    protected void writeDword(FileOutputStream stream, long value) throws IOException {
+        byte[] b = new byte[4];
+        b[0] = (byte) (value & 0xff);
+        b[1] = (byte) (value >> 8 & 0xff);
+        b[2] = (byte) (value >> 16 & 0xff);
+        b[3] = (byte) (value >> 24 & 0xff);
+        stream.write(b);
+    }
+
+    protected void writeLong(FileOutputStream stream, long value) throws IOException {
+        byte[] b = new byte[4];
+        b[0] = (byte) (value & 0xff);
+        b[1] = (byte) (value >> 8 & 0xff);
+        b[2] = (byte) (value >> 16 & 0xff);
+        b[3] = (byte) (value >> 24 & 0xff);
+        stream.write(b);
+    }
+
+
 
     private void readExif(String photoPath) {
         //android读取图片EXIF信息

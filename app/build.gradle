@@ -70,4 +70,8 @@ dependencies {
     implementation files('libs/AMap_Location_V4.5.0_20190121.jar')
     implementation files('libs/AMap_Search_V6.5.0_20180930.jar')
     implementation files('libs/Android_Map3D_SDK_V6.7.0_20190213.jar')
+    implementation files('libs/jai-imageio-core-1.4.0.jar')
+
+    // OpenCV
+    implementation 'org.opencv:openCVLibrary:3.4.0'
 }
